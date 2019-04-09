@@ -33,19 +33,35 @@ func main() {
 }
 
 func readPdf(path string) (string, error) {
-	f, r, err := pdf.Open(path)
-	// remember close file
-    defer f.Close()
+	// Open the file f, as reader r, and put errors in err.
+	f, r, err := pdf.Open(fileName)
 	if err != nil {
 		return "", err
 	}
-	var buf bytes.Buffer
-    b, err := r.GetPlainText()
-    if err != nil {
-        return "", err
-    }
-    buf.ReadFrom(b)
-	return buf.String(), nil
+	defer f.Close()
+
+	// Extract number of pages.
+	totalPage := r.NumPage()
+
+	var textBuilder bytes.Buffer
+	for pageIndex := 1; pageIndex <= totalPage; pageIndex++ {
+		page := r.Page(pageIndex)
+		if page.V.IsNull() {
+			continue
+		}
+		// Extract font for special characters and accented letters.
+		fonts := make(map[string]*pdf.Font)
+		pageFonts := page.Fonts()
+		for _, n := range pageFonts {
+			pointer := page.Font(n)
+			fonts[n] = &pointer
+		}
+
+		text, _ := page.GetPlainText(fonts)
+		textBuilder.WriteString(text)
+	}
+
+	return textBuilder.String(), nil
 }
 ```
 
